@@ -67,12 +67,12 @@
 const COLLECTION_KEY = "elitefourum_full_art_supporters";
   const STORAGE_KEY = "owned_cards_" + COLLECTION_KEY; // persists across rebuilds
 
-  // ✅ PASTE YOUR EXISTING CARDS ARRAY HERE (keep it exactly as you have it)
+  // PASTEEXISTING CARDS ARRAY HERE
   // Example:
   // const CARDS = [...];
   const CARDS = /* <-- paste your big array here --> */ [];
 
-  // ✅ This will be loaded from image_overrides.json
+  // This will be loaded from image_overrides.json
   let IMAGE_OVERRIDES = {};
 
   async function loadImageOverrides() {
@@ -325,7 +325,7 @@ const COLLECTION_KEY = "elitefourum_full_art_supporters";
     e.target.value = "";
   });
 
-  // ✅ IMPORTANT: load overrides FIRST, then render
+  // IMPORTANT: load overrides FIRST, then render
   (async function init() {
     await loadImageOverrides();
     fillSelectOptionsFromCards();
