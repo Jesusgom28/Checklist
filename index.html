@@ -71,14 +71,21 @@ const CARDS = [{"name": "Acerola", "character": "Acerola", "set": "Burning Shado
 
   let IMAGE_OVERRIDES = {};
 
+let IMAGE_OVERRIDES = {};
+
 fetch("./image_overrides.json")
-  .then(r => r.json())
+  .then(r => {
+    if (!r.ok) throw new Error("Not found");
+    return r.json();
+  })
   .then(m => {
-    IMAGE_OVERRIDES = m || {};
-    render(); // refresh once overrides are loaded
+    IMAGE_OVERRIDES = m;
+    render();
   })
   .catch(err => {
-    console.warn("Failed to load image_overrides.json", err);
+    console.warn("Overrides not loaded — continuing without them.");
+    IMAGE_OVERRIDES = {};
+    render();
   });
 
 let owned = new Set(JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]"));
