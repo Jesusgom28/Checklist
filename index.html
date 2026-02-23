@@ -71,7 +71,21 @@ const COLLECTION_KEY = "elitefourum_full_art_supporters";
   // Example:
   // const CARDS = [...];
   const CARDS = /* <-- paste your big array here --> */ [];
+let IMAGE_OVERRIDES = {};
+let overridesLoaded = false;
 
+  fetch("./image_overrides.json")
+  .then(r => r.json())
+  .then(m => {
+    IMAGE_OVERRIDES = m;
+    overridesLoaded = true;
+    render(); // re-render once overrides are available
+  })
+  .catch(err => {
+    console.warn("image_overrides.json failed to load", err);
+    overridesLoaded = true;
+    render(); // still render even if it fails
+  });
   // This will be loaded from image_overrides.json
   let IMAGE_OVERRIDES = {};
 
@@ -102,16 +116,8 @@ const COLLECTION_KEY = "elitefourum_full_art_supporters";
   sortMode.value = "name_asc";
 
   function getImgSrc(c) {
-    // 1) overrides by UID (this fixes cards like Alola Friends where image/image_local are blank)
-    const override = IMAGE_OVERRIDES && c && c.uid ? IMAGE_OVERRIDES[c.uid] : "";
-    if (override) return override;
-
-    // 2) local file path from cards data
-    if (c.image_local && c.image_local.length) return c.image_local;
-
-    // 3) fallback to remote image URL
-    return c.image || "";
-  }
+  return (IMAGE_OVERRIDES[c.uid] || c.image_local || c.image || "");
+}
 
   function save() {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(owned)));
