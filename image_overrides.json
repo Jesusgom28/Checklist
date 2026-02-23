@@ -24,5 +24,8 @@
   "SET::Extra Battle Day::NO::396/SM-P::TYPE::Promo": "images/Guzma_EBD_P.jpeg",
   "SET::Extra Battle Day::NO::397/SM-P::TYPE::Promo": "images/Lillie_EBD_P.jpeg",
 
-  "SET::Limited Collection Master Battle Set::NO::401/SM-P::TYPE::Promo": "images/Alola_Friends_LCMBS_P.jpeg"
+  "SET::Limited Collection Master Battle Set::NO::401/SM-P::TYPE::Promo": "images/Alola_Friends_LCMBS_P.jpeg",
+
+  "SET::Lost Origin::NO::TG24/TG30::TYPE::TG Ultra Rare": "images/Boss's_Orders(Lysandre)_LO_TGUR.jpeg",
+  "SET::White Flare::NO::164/086::TYPE::Ultra Rare": "images/Hilda_WF_UR.jpeg"
 }
