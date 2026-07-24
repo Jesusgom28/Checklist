@@ -13,6 +13,10 @@
   .stats { opacity:.9; font-size:13px; }
   main { padding:14px 16px; }
   .grid { display:grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap:12px; }
+  .set-section { grid-column: 1 / -1; margin-top:18px; padding:12px 14px; border:1px solid #2b3140; border-radius:12px; background:#111622; display:flex; justify-content:space-between; gap:12px; align-items:center; }
+  .set-section:first-child { margin-top:0; }
+  .set-title { font-size:18px; font-weight:700; }
+  .set-progress { font-size:13px; opacity:.8; white-space:nowrap; }
   .card {
     position: relative; background:#141824; border:1px solid #222; border-radius:14px; padding:10px; display:flex; flex-direction:column; gap:8px; }
   .thumb { width:100%; aspect-ratio: 3/4; border-radius:12px; background:#0b0d12; object-fit:cover; }
@@ -43,10 +47,11 @@
       <option value="">All Types/Rarity</option>
       <option value="-">-</option><option value="GG Ultra Rare">GG Ultra Rare</option><option value="Promo">Promo</option><option value="SR">SR</option><option value="Special Illustration Rare">Special Illustration Rare</option><option value="TG Ultra Rare">TG Ultra Rare</option><option value="Ultra Rare">Ultra Rare</option>
     </select>
-    <select id="sortMode">
-      <option value="name_asc">Name A→Z</option>
-      <option value="name_desc">Name Z→A</option>
-      <option value="set_num">Set + Number</option>
+    <select id="sortMode" aria-label="Sort cards">
+      <option value="set_num">⭐ Chronological (Default)</option>
+      <option value="name_asc">A → Z</option>
+      <option value="name_desc">Z → A</option>
+      <option value="set_alpha_num">Set → Card #</option>
     </select>
     <button id="exportBtn">Export</button>
     <button id="importBtn">Import</button>
@@ -95,8 +100,8 @@ const rarityFilter = document.getElementById("rarityFilter");
 const sortMode = document.getElementById("sortMode");
 const stats = document.getElementById("stats");
 
-// Force default sort to Name A→Z on every open
-sortMode.value = "name_asc";
+// Default to chronological set order
+sortMode.value = "set_num";
 
 function getImgSrc(c) {
   return (IMAGE_OVERRIDES[c.uid] || c.image_local || c.image || "");
@@ -125,19 +130,109 @@ function renderStats() {
 }
 
 function normalize(s) {
-
   return (s || "").toString().toLowerCase();
 }
 
-function cmpSetNum(a, b) {
-  const sa = a.set || "";
-  const sb = b.set || "";
-  if (sa !== sb) return sa.localeCompare(sb);
+const SET_NAME_CORRECTIONS = {
+  "Lost thunder": "Lost Thunder",
+  "Silver Temepst": "Silver Tempest"
+};
 
-  const na = a.card_number || "";
-  const nb = b.card_number || "";
-  return na.localeCompare(nb, undefined, {numeric:true, sensitivity:"base"});
+function normalizeSetName(setName) {
+  return SET_NAME_CORRECTIONS[setName] || setName || "Unknown Set";
 }
+
+// Chronological order beginning with the first English full-art Supporter set.
+const SET_ORDER = [
+  // Black & White era
+  "Noble Victories", "Boundaries Crossed", "Plasma Storm", "Plasma Freeze", "Plasma Blast",
+
+  // XY era
+  "Flashfire", "Furious Fists", "Phantom Forces", "Primal Clash", "Roaring Skies",
+  "Ancient Origins", "BREAKthrough", "BREAKpoint", "Fates Collide", "Steam Siege",
+  "Evolutions", "Premium Trainer's XY Collection", "Rocket 20th Anniversary",
+
+  // Sun & Moon era
+  "Sun & Moon", "Guardians Rising", "Burning Shadows", "Shining Legends",
+  "Shining Legends Sealed Game", "Crimson Invasion", "Ultra Prism", "Forbidden Light",
+  "Celestial Storm", "Dragon Majesty", "Lost Thunder", "Team Up",
+  "SMP2 Great Detective Pikachu", "Unbroken Bonds", "Unified Minds", "Hidden Fates",
+  "SM12a GX Tag All Stars", "Cosmic Eclipse", "Limited Collection Master Battle Set",
+  "Extra Battle Day",
+
+  // Sword & Shield era
+  "Sword & Shield", "Rebel Clash", "Darkness Ablaze", "Champion's Path", "Vivid Voltage",
+  "Shining Fates", "Battle Styles", "Chilling Reign", "Evolving Skies", "Celebrations",
+  "Fusion Strike", "Brilliant Stars", "Astral Radiance", "Pokémon GO",
+  "Pokémon GO Special Edition - Team Instinct", "Pokémon GO Special Edition - Team Mystic",
+  "Pokémon GO Special Edition - Team Valor", "Lost Origin", "Silver Tempest", "Crown Zenith",
+  "Professor Juniper Premium Tournament Collection", "Marnie Premium Tournament Collection",
+  "Cyrus Premium Tournament Collection", "Klara Premium Tournament Collection",
+  "Iono Premium Tournament Collection",
+
+  // Scarlet & Violet era
+  "Scarlet & Violet", "Paldea Evolved", "Obsidian Flames", "151", "Paradox Rift",
+  "Paldean Fates", "Temporal Forces", "Twilight Masquerade", "Shrouded Fable",
+  "Stellar Crown", "Surging Sparks", "Prismatic Evolutions", "Journey Together",
+  "Destined Rivals", "Black Bolt", "White Flare",
+
+  // Mega Evolution era / newest checklist sets
+  "Mega Evolution", "Phantasmal Flames", "Ascended Heroes"
+];
+
+const SET_ORDER_INDEX = new Map(SET_ORDER.map((setName, index) => [setName, index]));
+
+// Clean spelling inconsistencies in the displayed set names without changing card UIDs.
+CARDS.forEach(card => {
+  card.set = normalizeSetName(card.set);
+});
+
+function setOrderValue(setName) {
+  const normalized = normalizeSetName(setName);
+  return SET_ORDER_INDEX.has(normalized) ? SET_ORDER_INDEX.get(normalized) : SET_ORDER.length;
+}
+
+function compareCardNumbers(numberA, numberB) {
+  return (numberA || "").localeCompare(numberB || "", undefined, {
+    numeric: true,
+    sensitivity: "base"
+  });
+}
+
+function cmpSetNum(a, b) {
+  const setA = normalizeSetName(a.set);
+  const setB = normalizeSetName(b.set);
+  const orderDifference = setOrderValue(setA) - setOrderValue(setB);
+  if (orderDifference !== 0) return orderDifference;
+  if (setA !== setB) return setA.localeCompare(setB, undefined, {sensitivity:"base"});
+
+  return (a.card_number || "").localeCompare(
+    b.card_number || "",
+    undefined,
+    {numeric:true, sensitivity:"base"}
+  );
+}
+
+function rebuildSetFilter() {
+  const selectedSet = normalizeSetName(setFilter.value);
+  const uniqueSets = [...new Set(CARDS.map(card => normalizeSetName(card.set)))];
+  uniqueSets.sort((a, b) => {
+    const difference = setOrderValue(a) - setOrderValue(b);
+    return difference || a.localeCompare(b, undefined, {sensitivity:"base"});
+  });
+
+  setFilter.innerHTML = '<option value="">All Sets</option>';
+  uniqueSets.forEach(setName => {
+    const option = document.createElement("option");
+    option.value = setName;
+    option.textContent = setName;
+    setFilter.appendChild(option);
+  });
+
+  if (uniqueSets.includes(selectedSet)) setFilter.value = selectedSet;
+}
+
+rebuildSetFilter();
 
 function getFilteredSorted() {
   const q = normalize(search.value).trim();
@@ -148,7 +243,7 @@ function getFilteredSorted() {
   let arr = CARDS.filter(c => {
     const name = normalize(c.display_name || c.name || "");
     if (q && !name.includes(q)) return false;
-    if (setVal && c.set !== setVal) return false;
+    if (setVal && normalizeSetName(c.set) !== normalizeSetName(setVal)) return false;
     if (rarVal && c.rarity !== rarVal) return false;
 
     const isOwned = owned.has(c.uid);
@@ -159,9 +254,21 @@ function getFilteredSorted() {
 
   const mode = sortMode.value;
   if (mode === "name_asc") {
-    arr.sort((a,b) => (a.name||"").localeCompare(b.name||"", undefined, {sensitivity:"base"}));
+    arr.sort((a,b) => (a.display_name || a.name || "").localeCompare(
+      b.display_name || b.name || "", undefined, {sensitivity:"base"}
+    ));
   } else if (mode === "name_desc") {
-    arr.sort((a,b) => (b.name||"").localeCompare(a.name||"", undefined, {sensitivity:"base"}));
+    arr.sort((a,b) => (b.display_name || b.name || "").localeCompare(
+      a.display_name || a.name || "", undefined, {sensitivity:"base"}
+    ));
+  } else if (mode === "set_alpha_num") {
+    arr.sort((a, b) => {
+      const setA = normalizeSetName(a.set);
+      const setB = normalizeSetName(b.set);
+      const setCompare = setA.localeCompare(setB, undefined, {sensitivity:"base"});
+      if (setCompare !== 0) return setCompare;
+      return compareCardNumbers(a.card_number, b.card_number);
+    });
   } else {
     arr.sort(cmpSetNum);
   }
@@ -169,60 +276,91 @@ function getFilteredSorted() {
   return arr;
 }
 
+function createCardElement(c) {
+  const div = document.createElement("div");
+  div.className = "card";
+
+  const img = document.createElement("img");
+  img.className = "thumb";
+  img.loading = "lazy";
+  img.src = getImgSrc(c);
+  img.alt = c.display_name || c.name || "Unknown";
+  img.onerror = () => { img.style.display = "none"; };
+  if (!img.src) img.style.display = "none";
+
+  const n = document.createElement("div");
+  n.className = "name";
+  n.textContent = c.display_name || c.name || "Unknown";
+
+  const meta = document.createElement("div");
+  meta.className = "meta";
+  meta.textContent =
+    (c.set ? ("Set: " + normalizeSetName(c.set) + "\n") : "") +
+    (c.card_number ? ("No: " + c.card_number + "\n") : "") +
+    (c.rarity ? ("Type: " + c.rarity) : "");
+
+  const label = document.createElement("label");
+  label.className = "check";
+
+  const cb = document.createElement("input");
+  cb.type = "checkbox";
+  cb.checked = owned.has(c.uid);
+  cb.addEventListener("change", () => {
+    if (cb.checked) owned.add(c.uid);
+    else owned.delete(c.uid);
+    save();
+    if (sortMode.value === "set_num" || sortMode.value === "set_alpha_num") render();
+  });
+
+  const txt = document.createElement("span");
+  txt.textContent = "Owned";
+  label.appendChild(cb);
+  label.appendChild(txt);
+
+  div.appendChild(img);
+  div.appendChild(n);
+  div.appendChild(meta);
+  div.appendChild(label);
+  return div;
+}
+
+function addSetHeading(setName, cards) {
+  const heading = document.createElement("div");
+  heading.className = "set-section";
+
+  const title = document.createElement("div");
+  title.className = "set-title";
+  title.textContent = setName;
+
+  const progress = document.createElement("div");
+  progress.className = "set-progress";
+  const ownedCount = cards.filter(card => owned.has(card.uid)).length;
+  progress.textContent = ownedCount + " / " + cards.length + " owned";
+
+  heading.appendChild(title);
+  heading.appendChild(progress);
+  grid.appendChild(heading);
+}
+
 function render() {
   const arr = getFilteredSorted();
   grid.innerHTML = "";
 
-  arr.forEach(c => {
-    const div = document.createElement("div");
-    div.className = "card";
-
-    const img = document.createElement("img");
-    img.className = "thumb";
-    img.loading = "lazy";
-    img.src = getImgSrc(c);
-    img.alt = c.display_name || c.name || "Unknown";
-
-    // Hide broken/missing images so cards still show cleanly
-    img.onerror = () => { img.style.display = "none"; };
-    if (!img.src) img.style.display = "none";
-
-    const n = document.createElement("div");
-    n.className = "name";
-    n.textContent = c.display_name || c.name || "Unknown";
-
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent =
-      (c.set ? ("Set: " + c.set + "\\n") : "") +
-      (c.card_number ? ("No: " + c.card_number + "\\n") : "") +
-      (c.rarity ? ("Type: " + c.rarity) : "");
-
-    const label = document.createElement("label");
-    label.className = "check";
-
-    const cb = document.createElement("input");
-    cb.type = "checkbox";
-    cb.checked = owned.has(c.uid);
-    cb.addEventListener("change", () => {
-      if (cb.checked) owned.add(c.uid);
-      else owned.delete(c.uid);
-      save();
+  if (sortMode.value === "set_num" || sortMode.value === "set_alpha_num") {
+    const groups = new Map();
+    arr.forEach(card => {
+      const setName = normalizeSetName(card.set);
+      if (!groups.has(setName)) groups.set(setName, []);
+      groups.get(setName).push(card);
     });
 
-    const txt = document.createElement("span");
-    txt.textContent = "Owned";
-
-    label.appendChild(cb);
-    label.appendChild(txt);
-
-    div.appendChild(img);
-    div.appendChild(n);
-    div.appendChild(meta);
-    div.appendChild(label);
-
-    grid.appendChild(div);
-  });
+    groups.forEach((cards, setName) => {
+      addSetHeading(setName, cards);
+      cards.forEach(card => grid.appendChild(createCardElement(card)));
+    });
+  } else {
+    arr.forEach(card => grid.appendChild(createCardElement(card)));
+  }
 
   renderStats();
 }
